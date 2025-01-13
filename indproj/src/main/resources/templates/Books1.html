@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Books List</title>
+</head>
+<body>
+<h4>ВСЕ КНИГИ:</h4>
+<table border="1">
+    <thead>
+    <tr>
+        <th>Title</th>
+        <th>Genre</th>
+    </tr>
+    </thead>
+    <tbody>
+    <!-- Перебираем список книг, переданных в модель -->
+    <tr th:each="book : ${books}">
+        <td th:text="${book.title}"></td>  <!-- Отображаем название книги -->
+        <td th:text="${book.genre}"></td>  <!-- Отображаем жанр книги -->
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>
