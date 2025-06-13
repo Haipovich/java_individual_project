@@ -10,16 +10,31 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Главный контроллер для отображения списка таблиц
+ * Предоставляет доступ к основным страницам приложения
+ */
 @Controller
 @RequestMapping("/")
-public class MainTables {
+public class MainTablesController {
 
     private final EntityManager entityManager;
 
-    public MainTables(EntityManager entityManager) {
+    /**
+     * Конструктор контроллера
+     * 
+     * @param entityManager менеджер сущностей для получения метаданных
+     */
+    public MainTablesController(EntityManager entityManager) {
         this.entityManager = entityManager;
     }
 
+    /**
+     * Отображает список всех доступных таблиц
+     * 
+     * @param model модель для передачи данных в представление
+     * @return имя представления со списком таблиц
+     */
     @GetMapping
     public String listTables(Model model) {
         // Получаем список всех сущностей

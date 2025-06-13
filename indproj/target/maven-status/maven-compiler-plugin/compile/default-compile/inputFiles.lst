@@ -1,0 +1,11 @@
+/home/Haipovich/dev/Projects/study/code-review/java_individual_project/indproj/src/main/java/com/example/indproj/IndprojApplication.java
+/home/Haipovich/dev/Projects/study/code-review/java_individual_project/indproj/src/main/java/com/example/indproj/controllers/MainTablesController.java
+/home/Haipovich/dev/Projects/study/code-review/java_individual_project/indproj/src/main/java/com/example/indproj/controllers/TableController.java
+/home/Haipovich/dev/Projects/study/code-review/java_individual_project/indproj/src/main/java/com/example/indproj/model/Car.java
+/home/Haipovich/dev/Projects/study/code-review/java_individual_project/indproj/src/main/java/com/example/indproj/model/Driver.java
+/home/Haipovich/dev/Projects/study/code-review/java_individual_project/indproj/src/main/java/com/example/indproj/model/Fine.java
+/home/Haipovich/dev/Projects/study/code-review/java_individual_project/indproj/src/main/java/com/example/indproj/repositories/CarRepository.java
+/home/Haipovich/dev/Projects/study/code-review/java_individual_project/indproj/src/main/java/com/example/indproj/repositories/DriverRepository.java
+/home/Haipovich/dev/Projects/study/code-review/java_individual_project/indproj/src/main/java/com/example/indproj/repositories/FineRepository.java
+/home/Haipovich/dev/Projects/study/code-review/java_individual_project/indproj/src/main/java/com/example/indproj/services/TableService.java
+/home/Haipovich/dev/Projects/study/code-review/java_individual_project/indproj/src/main/java/com/example/indproj/utils/TableUtils.java

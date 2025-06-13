@@ -13,6 +13,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Контроллер для работы с таблицами сущностей
+ * Предоставляет REST API для CRUD операций с сущностями
+ */
 @Controller
 @RequestMapping("/table")
 public class TableController {
@@ -20,22 +24,36 @@ public class TableController {
     private final EntityManager entityManager;
     private final TableService tableService;
 
+    /**
+     * Конструктор контроллера
+     * 
+     * @param entityManager менеджер сущностей
+     * @param tableService сервис для работы с таблицами
+     */
     public TableController(EntityManager entityManager, TableService tableService) {
         this.entityManager = entityManager;
         this.tableService = tableService;
-
     }
 
+    /**
+     * Отображает детали таблицы с данными
+     * 
+     * @param tableName имя таблицы для отображения
+     * @param model модель для передачи данных в представление
+     * @return имя представления
+     */
     @GetMapping("/{tableName}")
     public String tableDetails(@PathVariable String tableName, Model model) {
         Class<?> entityClass = getEntityClass(tableName);
         if (entityClass == null) {
-            throw new IllegalArgumentException("Invalid table name: " + tableName);
+            System.out.println("Ошибка: Неверное имя таблицы: " + tableName);
+            return "error";
         }
 
         List<String> headers = TableUtils.getHeaders(entityClass);
 
-        List<Object> entities = (List<Object>) entityManager.createQuery("FROM " + entityClass.getSimpleName(), entityClass)
+        List<Object> entities = (List<Object>) entityManager
+                .createQuery("FROM " + entityClass.getSimpleName(), entityClass)
                 .getResultList();
         List<List<Object>> rows = entities.stream()
                 .map(TableUtils::toRow)
@@ -48,98 +66,165 @@ public class TableController {
         return "table_data";
     }
 
+    /**
+     * Удаляет строку из таблицы
+     * 
+     * @param tableName имя таблицы
+     * @param id идентификатор удаляемой строки
+     * @return перенаправление на таблицу
+     */
     @PostMapping("/{tableName}/delete/{id}")
     public String deleteRow(@PathVariable String tableName, @PathVariable Long id) {
         Class<?> entityClass = getEntityClass(tableName);
-        tableService.deleteEntityById(entityClass, id); // Вызов сервиса для удаления
+        tableService.deleteEntityById(entityClass, id);
         return "redirect:/table/" + tableName;
     }
 
-    // Метод для сопоставления имени таблицы и класса сущности
+    /**
+     * Получает класс сущности по имени таблицы
+     * 
+     * @param tableName имя таблицы
+     * @return класс сущности или null если не найден
+     */
     private Class<?> getEntityClass(String tableName) {
-        return entityManager.getMetamodel()
-                .getEntities()
-                .stream()
-                .filter(entity -> entity.getName().equalsIgnoreCase(tableName))
-                .map(EntityType::getJavaType)
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Invalid table name: " + tableName));
+        try {
+            return entityManager.getMetamodel()
+                    .getEntities()
+                    .stream()
+                    .filter(entity -> entity.getName().equalsIgnoreCase(tableName))
+                    .map(EntityType::getJavaType)
+                    .findFirst()
+                    .orElse(null);
+        } catch (Exception e) {
+            System.out.println("Ошибка получения класса сущности для таблицы " 
+                    + tableName + ": " + e.getMessage());
+            return null;
+        }
     }
 
+    /**
+     * Добавляет новую строку в таблицу
+     * 
+     * @param tableName имя таблицы
+     * @param formData данные формы
+     * @param model модель для передачи данных в представление
+     * @return имя представления или перенаправление
+     */
     @PostMapping("/{tableName}/add")
-    public String addRow(@PathVariable String tableName, @RequestParam Map<String, String> formData, Model model) {
+    public String addRow(@PathVariable String tableName, 
+            @RequestParam Map<String, String> formData, Model model) {
         Class<?> entityClass = getEntityClass(tableName);
         List<String> headers = TableUtils.getHeaders(entityClass);
 
         try {
-            // Валидация данных
-            TableUtils.validateFormData(entityClass, formData);
+            if (!TableUtils.validateFormData(entityClass, formData)) {
+                model.addAttribute("tableName", tableName);
+                model.addAttribute("headers", headers);
+                model.addAttribute("errorMessage", "Ошибка валидации данных");
 
-            // Создание и сохранение сущности
+                List<Object> entities = (List<Object>) entityManager
+                        .createQuery("FROM " + entityClass.getSimpleName(), entityClass)
+                        .getResultList();
+                List<List<Object>> rows = entities.stream()
+                        .map(TableUtils::toRow)
+                        .toList();
+
+                model.addAttribute("rows", rows);
+                return "table_data";
+            }
+
             Object entity = TableUtils.createEntityFromForm(entityClass, formData, entityManager);
-            tableService.saveEntity(entity);
+            if (entity != null) {
+                tableService.saveEntity(entity);
+                return "redirect:/table/" + tableName;
+            } else {
+                model.addAttribute("tableName", tableName);
+                model.addAttribute("headers", headers);
+                model.addAttribute("errorMessage", "Ошибка создания сущности");
 
-            return "redirect:/table/" + tableName;
-        } catch (IllegalArgumentException e) {
-            // Обработка ошибок
+                List<Object> entities = (List<Object>) entityManager
+                        .createQuery("FROM " + entityClass.getSimpleName(), entityClass)
+                        .getResultList();
+                List<List<Object>> rows = entities.stream()
+                        .map(TableUtils::toRow)
+                        .toList();
+
+                model.addAttribute("rows", rows);
+                return "table_data";
+            }
+        } catch (Exception e) {
+            System.out.println("Ошибка добавления строки: " + e.getMessage());
             model.addAttribute("tableName", tableName);
             model.addAttribute("headers", headers);
-            model.addAttribute("errorMessage", e.getMessage());
+            model.addAttribute("errorMessage", "Ошибка добавления строки: " + e.getMessage());
 
-            // Загрузка текущих данных таблицы
-            List<Object> entities = (List<Object>) entityManager.createQuery("FROM " + entityClass.getSimpleName(), entityClass)
+            List<Object> entities = (List<Object>) entityManager
+                    .createQuery("FROM " + entityClass.getSimpleName(), entityClass)
                     .getResultList();
             List<List<Object>> rows = entities.stream()
                     .map(TableUtils::toRow)
                     .toList();
 
             model.addAttribute("rows", rows);
-
-            return "table_data"; // Вернуться на ту же страницу с сообщением об ошибке
+            return "table_data";
         }
     }
 
+    /**
+     * Отображает форму редактирования строки
+     * 
+     * @param tableName имя таблицы
+     * @param id идентификатор редактируемой строки
+     * @param model модель для передачи данных в представление
+     * @return имя представления
+     */
     @GetMapping("/{tableName}/edit/{id}")
     public String editRow(@PathVariable String tableName, @PathVariable Long id, Model model) {
         Class<?> entityClass = getEntityClass(tableName);
         Object entity = tableService.findById(entityClass, id);
         if (entity == null) {
-            throw new IllegalArgumentException("Entity with id " + id + " not found.");
+            System.out.println("Ошибка: Сущность с id " + id + " не найдена.");
+            return "error";
         }
 
-        // Преобразование полей для отображения
         Map<String, Object> entityData = new HashMap<>();
         for (Field field : entityClass.getDeclaredFields()) {
             field.setAccessible(true);
             try {
                 Object value = field.get(entity);
 
-                // Проверяем, если поле — это объект с полем "id"
-                if (value != null && !isPrimitiveOrWrapper(value.getClass()) && !value.getClass().equals(String.class)) {
+                if (value != null && !isPrimitiveOrWrapper(value.getClass()) 
+                        && !value.getClass().equals(String.class)) {
                     try {
                         Field idField = value.getClass().getDeclaredField("id");
                         idField.setAccessible(true);
-                        value = idField.get(value); // Получаем id связанного объекта
+                        value = idField.get(value);
                     } catch (NoSuchFieldException e) {
-                        // Поле не содержит "id", оставляем как есть
                     }
                 }
                 entityData.put(field.getName(), value);
             } catch (Exception e) {
-                throw new RuntimeException("Error processing field: " + field.getName(), e);
+                System.out.println("Ошибка обработки поля: " + field.getName() 
+                        + ": " + e.getMessage());
+                return "error";
             }
         }
 
         List<String> headers = TableUtils.getHeaders(entityClass);
 
         model.addAttribute("tableName", tableName);
-        model.addAttribute("entity", entityData); // Передаем обработанные данные
+        model.addAttribute("entity", entityData);
         model.addAttribute("headers", headers);
 
         return "edit_row";
     }
 
-    // Проверка, является ли класс примитивом или его оберткой
+    /**
+     * Проверяет, является ли класс примитивом или его оберткой
+     * 
+     * @param clazz класс для проверки
+     * @return true если класс является примитивом или оберткой
+     */
     private boolean isPrimitiveOrWrapper(Class<?> clazz) {
         return clazz.isPrimitive() ||
                 clazz == Boolean.class ||
@@ -152,7 +237,15 @@ public class TableController {
                 clazz == Short.class;
     }
 
-
+    /**
+     * Обновляет строку в таблице
+     * 
+     * @param tableName имя таблицы
+     * @param id идентификатор обновляемой строки
+     * @param formData данные формы
+     * @param model модель для передачи данных в представление
+     * @return имя представления или перенаправление
+     */
     @PostMapping("/{tableName}/edit/{id}")
     public String updateRow(
             @PathVariable String tableName,
@@ -163,10 +256,12 @@ public class TableController {
         try {
             tableService.updateEntityFromForm(entityClass, id, formData);
             return "redirect:/table/" + tableName;
-        } catch (IllegalArgumentException e) {
+        } catch (Exception e) {
+            System.out.println("Ошибка обновления строки: " + e.getMessage());
             Object entity = tableService.findById(entityClass, id);
             if (entity == null) {
-                throw new IllegalArgumentException("Entity with id " + id + " not found.");
+                System.out.println("Ошибка: Сущность с id " + id + " не найдена.");
+                return "error";
             }
             Map<String, Object> entityData = new HashMap<>();
             for (Field field : entityClass.getDeclaredFields()) {
@@ -174,41 +269,29 @@ public class TableController {
                 try {
                     Object value = field.get(entity);
 
-                    // Проверяем, если поле — это объект с полем "id"
-                    if (value != null && !isPrimitiveOrWrapper(value.getClass()) && !value.getClass().equals(String.class)) {
+                    if (value != null && !isPrimitiveOrWrapper(value.getClass()) 
+                            && !value.getClass().equals(String.class)) {
                         try {
                             Field idField = value.getClass().getDeclaredField("id");
                             idField.setAccessible(true);
-                            value = idField.get(value); // Получаем id связанного объекта
+                            value = idField.get(value);
                         } catch (NoSuchFieldException ex) {
-                            // Поле не содержит "id", оставляем как есть
                         }
                     }
                     entityData.put(field.getName(), value);
                 } catch (Exception ex) {
-                    throw new RuntimeException("Error processing field: " + field.getName(), ex);
+                    System.out.println("Ошибка обработки поля: " + field.getName() 
+                            + ": " + ex.getMessage());
+                    return "error";
                 }
             }
 
             List<String> headers = TableUtils.getHeaders(entityClass);
             model.addAttribute("error", e.getMessage());
             model.addAttribute("tableName", tableName);
-            model.addAttribute("entity", entityData); // Передаем обработанные данные
+            model.addAttribute("entity", entityData);
             model.addAttribute("headers", headers);
 
-            return "edit_row";
-        } catch (Exception e) {
-            Object entity = tableService.findById(entityClass, id);
-            if (entity == null) {
-                throw new IllegalArgumentException("Entity with id " + id + " not found.");
-            }
-            List<String> headers = TableUtils.getHeaders(entityClass);
-            model.addAttribute("error", e.getMessage());
-            model.addAttribute("formData", formData);
-            model.addAttribute("tableName", tableName);
-            model.addAttribute("id", id);
-            model.addAttribute("entity", entity);
-            model.addAttribute("headers", headers);
             return "edit_row";
         }
     }
